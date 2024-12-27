@@ -72,3 +72,4 @@ This script tests the search functionality on the LambdaTest Selenium Playground
 #### Code Quality
 The script adheres to PEP8 standards, uses robust assertion statements, and employs a modular structure for easy maintenance and scalability.
 # Python-Qa-selenium
+# Python-Qa-selenium
