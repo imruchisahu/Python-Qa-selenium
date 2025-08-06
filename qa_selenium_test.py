@@ -1,3 +1,4 @@
+import os
 import pytest
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -9,12 +10,15 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
 from webdriver_manager.firefox import GeckoDriverManager
-
+from pytest_html import extras
 # Configurable constants
 URL = "https://www.lambdatest.com/selenium-playground/table-sort-search-demo"
 SEARCH_TERM = "New York"
 EXPECTED_RESULTS = 5
 TOTAL_ENTRIES = 24
+
+
+
 
 @pytest.fixture(scope="module")
 def setup_browser():
@@ -22,9 +26,38 @@ def setup_browser():
     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()))
     # Uncomment the next line to use Firefox instead of Chrome
     # driver = webdriver.Firefox(service=FirefoxService(GeckoDriverManager().install()))
+    driver.maximize_window()
     driver.implicitly_wait(10)
     yield driver
     driver.quit()
+
+
+@pytest.hookimpl(tryfirst=True, hookwrapper=True)
+def pytest_runtest_makereport(item, call):
+    """Hook to capture test results."""
+    outcome = yield
+    report = outcome.get_result()
+    if report.when == "call" and report.failed:
+        # Capture screenshot on failure
+        driver = item.funcargs.get("setup_browser")
+        if driver:
+            # Create screenshots directory if it doesn't exist
+            screenshots_dir = "screenshots"
+            os.makedirs(screenshots_dir, exist_ok=True)
+
+            # Save the screenshot
+            screenshot_path = os.path.join("screenshots/", f"{item.name}.png")
+            driver.save_screenshot(screenshot_path)
+
+
+            # Attach the screenshot to the HTML report
+            if hasattr(report, "extra"):
+                screenshot_relative_path = "(Python Qa selenium/screenshots/",f"{item.name}.png)"
+                screenshot_link = f"<a href='{screenshot_relative_path}' target='_blank'>Screenshot</a>"
+                report.extra = report.extra or []
+                report.extra.append(extras.html(screenshot_link))
+
+
 
 def test_validate_search_functionality(setup_browser):
     """Test the search functionality of the table."""
@@ -59,7 +92,7 @@ def test_validate_search_functionality(setup_browser):
     except AssertionError as e:
         print(f"Assertion Error: {str(e)}")
         # You can also log this error to a file, or take a screenshot if needed
-        driver.save_screenshot("search_test_error.png")
+        driver.save_screenshot("screenshots/search_test_error.png")
         raise  # Re-raise the error if you want the test to fail after logging
 
     # Validate the total entries text
@@ -72,7 +105,8 @@ def test_validate_search_functionality(setup_browser):
     except AssertionError as e:
         print(f"Assertion Error: {str(e)}")
         # You can take additional action if necessary, such as capturing the screen
-        driver.save_screenshot("total_entries_error.png")
+        #driver.save_screenshot("total_entries_error.png")
+        driver.save_screenshot("screenshots/total_entries_error.png")
         raise # Re-raise the error if you want the test to fail after logging
 
 # README content
@@ -155,5 +189,7 @@ if __name__ == "__main__":
     with open("README.md", "w") as readme_file:
         readme_file.write(README_CONTENT)
     print("README.md created successfully.")
-    pytest.main(["-v", "qa_selenium_test.py"])
+    #pytest.main(["-v", "qa_selenium_test.py"])
+    # pytest qa_selenium_test.py --html=report.html --self-contained-html
+    pytest.main(["-v",  "--html=report.html", "--self-contained-html"])
 
